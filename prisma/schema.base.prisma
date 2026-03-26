@@ -1,0 +1,211 @@
+// ==========================================
+// USERS & AUTH
+// ==========================================
+model User {
+  id            Int       @id @default(autoincrement())
+  username      String    @unique
+  email         String    @unique
+  passwordHash  String
+  fullName      String
+  role          String    @default("USER")
+  department    String?
+  phone         String?
+  avatarUrl     String?
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  ticketsCreated   Ticket[]         @relation("TicketRequester")
+  ticketsAssigned  Ticket[]         @relation("TicketAssignee")
+  comments         TicketComment[]
+  historyEntries   TicketHistory[]
+  kbArticles       KBArticle[]
+
+  @@map("users")
+}
+
+// ==========================================
+// TICKETS
+// ==========================================
+model Ticket {
+  id               Int       @id @default(autoincrement())
+  ticketNumber     String    @unique
+  title            String
+  description      String?
+  priority         String    @default("MEDIUM")
+  status           String    @default("NEW")
+
+  categoryId       Int?
+  category         Category? @relation(fields: [categoryId], references: [id])
+
+  requesterId      Int
+  requester        User      @relation("TicketRequester", fields: [requesterId], references: [id])
+
+  assigneeId       Int?
+  assignee         User?     @relation("TicketAssignee", fields: [assigneeId], references: [id])
+
+  dueDate          DateTime?
+  firstResponseAt  DateTime?
+  assignedAt       DateTime?
+  resolvedAt       DateTime?
+  closedAt         DateTime?
+  resolutionNotes  String?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  comments     TicketComment[]
+  attachments  TicketAttachment[]
+  history      TicketHistory[]
+  kbLinks      TicketKBLink[]
+  slaBreach    SLABreach?
+
+  @@index([status])
+  @@index([priority])
+  @@index([assigneeId])
+  @@index([requesterId])
+  @@index([createdAt])
+  @@map("tickets")
+}
+
+model TicketComment {
+  id          Int       @id @default(autoincrement())
+  ticketId    Int
+  ticket      Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id])
+  commentText String
+  isInternal  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  editedAt    DateTime?
+
+  @@index([ticketId])
+  @@map("ticket_comments")
+}
+
+model TicketAttachment {
+  id           Int      @id @default(autoincrement())
+  ticketId     Int
+  ticket       Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fileName     String
+  filePath     String
+  fileSize     Int
+  mimeType     String
+  uploadedBy   Int
+  createdAt    DateTime @default(now())
+
+  @@map("ticket_attachments")
+}
+
+model TicketHistory {
+  id           Int      @id @default(autoincrement())
+  ticketId     Int
+  ticket       Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fieldChanged String
+  oldValue     String?
+  newValue     String?
+  changedBy    Int
+  user         User     @relation(fields: [changedBy], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([ticketId])
+  @@map("ticket_history")
+}
+
+// ==========================================
+// KNOWLEDGE BASE
+// ==========================================
+model KBArticle {
+  id           Int       @id @default(autoincrement())
+  title        String
+  content      String
+  summary      String?
+  categoryId   Int?
+  category     Category? @relation(fields: [categoryId], references: [id])
+  keywords     String?
+  isPublished  Boolean   @default(false)
+  viewCount    Int       @default(0)
+  helpfulCount Int       @default(0)
+  createdBy    Int
+  creator      User      @relation(fields: [createdBy], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  ticketLinks  TicketKBLink[]
+
+  @@map("kb_articles")
+}
+
+model TicketKBLink {
+  id        Int       @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  articleId Int
+  article   KBArticle @relation(fields: [articleId], references: [id])
+  createdAt DateTime  @default(now())
+
+  @@unique([ticketId, articleId])
+  @@map("ticket_kb_links")
+}
+
+// ==========================================
+// SLA & ESCALATION
+// ==========================================
+model SLAPolicy {
+  id                  Int    @id @default(autoincrement())
+  priority            String @unique
+  priorityName        String
+  responseTimeHours   Int
+  resolutionTimeHours Int
+  escalationHours     Int
+
+  @@map("sla_policies")
+}
+
+model SLABreach {
+  id          Int       @id @default(autoincrement())
+  ticketId    Int       @unique
+  ticket      Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  breachType  String
+  breachedAt  DateTime  @default(now())
+  isEscalated Boolean   @default(false)
+  escalatedTo Int?
+  resolvedAt  DateTime?
+
+  @@map("sla_breaches")
+}
+
+// ==========================================
+// CATEGORIES & CONFIG
+// ==========================================
+model Category {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  parentId    Int?
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children    Category[] @relation("CategoryTree")
+  isActive    Boolean    @default(true)
+
+  tickets     Ticket[]
+  kbArticles  KBArticle[]
+
+  @@map("categories")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String
+  entityType String
+  entityId   Int?
+  oldValue   String?
+  newValue   String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_log")
+}

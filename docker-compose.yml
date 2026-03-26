@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # PostgreSQL
+  postgres:
+    image: postgres:14-alpine
+    profiles: ['postgres']
+    environment:
+      POSTGRES_USER: itms_user
+      POSTGRES_PASSWORD: itms_pass_123
+      POSTGRES_DB: itms
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  # MySQL
+  mysql:
+    image: mysql:8
+    profiles: ['mysql']
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass_123
+      MYSQL_DATABASE: itms
+      MYSQL_USER: itms_user
+      MYSQL_PASSWORD: itms_pass_123
+    volumes:
+      - mysqldata:/var/lib/mysql
+    ports:
+      - '3306:3306'
+
+  # MSSQL
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    profiles: ['mssql']
+    environment:
+      ACCEPT_EULA: 'Y'
+      MSSQL_SA_PASSWORD: 'Itms@Pass123'
+    volumes:
+      - mssqldata:/var/opt/mssql
+    ports:
+      - '1433:1433'
+
+  # App
+  app:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      NEXTAUTH_SECRET: 'change-this-to-a-secure-secret-string'
+      NEXTAUTH_URL: 'http://localhost:3000'
+      NODE_ENV: production
+    depends_on: []
+
+volumes:
+  pgdata:
+  mysqldata:
+  mssqldata:
